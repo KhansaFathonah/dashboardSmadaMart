@@ -1,0 +1,112 @@
+
+services:
+  # ==========================================
+  # LARAVEL APPLICATION
+  # ==========================================
+  laravel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: smada_laravel
+    restart: unless-stopped
+    working_dir: /var/www/html
+
+    ports:
+      - "8070:8000"
+
+    volumes:
+      - ./laravel:/var/www/html
+
+    depends_on:
+      mysql:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+    networks:
+      - smada_network
+
+    command: >
+      sh -c "php artisan serve
+      --host=0.0.0.0 --port=8000"
+
+
+  # ==========================================
+  # MYSQL - APPLICATION DATABASE
+  # ==========================================
+  mysql:
+    image: mysql:8.4
+    container_name: smada_mysql
+    restart: unless-stopped
+
+    environment:
+      MYSQL_DATABASE: db_smada_bi
+      MYSQL_USER: smada
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD belum diatur}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD belum diatur}
+
+    ports:
+      - "127.0.0.1:3308:3306"
+
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - MYSQL_PWD=$$MYSQL_PASSWORD mysqladmin ping -h 127.0.0.1 -u $$MYSQL_USER --silent
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+    networks:
+      - smada_network
+
+
+  # ==========================================
+  # POSTGRESQL - STAGING & DATA WAREHOUSE
+  # ==========================================
+  postgres:
+    image: postgres:16
+    container_name: smada_postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: dw_smadamart
+      POSTGRES_USER: smada
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD belum diatur}
+
+    ports:
+      - "127.0.0.1:5433:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+    networks:
+      - smada_network
+
+
+# ==========================================
+# NETWORKS
+# ==========================================
+networks:
+  smada_network:
+    driver: bridge
+
+
+# ==========================================
+# PERSISTENT VOLUMES
+# ==========================================
+volumes:
+  mysql_data:
+  postgres_data:
